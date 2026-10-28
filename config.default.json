@@ -1,0 +1,152 @@
+{
+  "hotkeys": {
+    "port": 47113,
+    "tapMs": 350,
+    "key": "Pause",
+    "_note": "The talk key, bound by win/butler-keys.ahk from state/ptt-key: hold to talk, tap to open or close the dock. An AutoHotkey key name."
+  },
+  "voice": {
+    "engine": "live",
+    "_engine_note": "live: OpenAI GPT-Live hears and speaks and hands tool work to lanes.delegate (needs OPENAI_API_KEY; without it Butler uses turns). turns: any model in lanes.voice, spoken by tts. realtime: OpenAI Realtime (the model, voice, vad and transcribe keys below).",
+    "live": {
+      "model": "gpt-live-1",
+      "voice": "meridian",
+      "voices": ["quartz", "ripple", "vesper", "willow", "stone", "gleam", "meridian", "bossa", "tempo", "beacon", "delta", "cinder", "nuri", "juni", "flitz", "brise", "sillage", "nira", "harema", "shida", "noeul"],
+      "idleSeconds": 30
+    },
+    "tts": { "engine": "edge", "voice": "en-GB-RyanNeural", "rate": "+20%" },
+    "historyTurns": 20,
+    "model": "gpt-realtime-2.1",
+    "voice": "cedar",
+    "reasoningEffort": "low",
+    "transcribeModel": "gpt-4o-mini-transcribe",
+    "vad": { "threshold": 0.55, "silenceMs": 450 },
+    "conversationIdleSeconds": 12,
+    "freshContextAfterMinutes": 5,
+    "chatGapMinutes": 180,
+    "reconnectAfterMinutes": 50
+  },
+  "audio": {
+    "input": "",
+    "output": "",
+    "_note": "Device names as Windows shows them; empty means the Windows default."
+  },
+  "captions": {
+    "engine": "auto",
+    "museModel": "muse-voice-transcribe-1.0",
+    "openaiModel": "gpt-live-transcribe",
+    "keywords": ["Butler", "herdr", "Claude", "Codex", "Fable", "Opus", "MOLE"]
+  },
+  "wake": {
+    "engine": "openai",
+    "phrase": "butler",
+    "aliases": ["butler", "butlers", "buttler", "bottler"],
+    "transcribeModel": "gpt-live-transcribe",
+    "keywords": ["Butler"],
+    "speechGateRms": 0.012,
+    "porcupineKeywordPath": "",
+    "porcupineSensitivity": 0.6
+  },
+  "providers": {
+    "openai": { "kind": "responses", "url": "https://api.openai.com/v1/responses", "keyEnv": "OPENAI_API_KEY" },
+    "openai-chat": { "kind": "chat", "url": "https://api.openai.com/v1/chat/completions", "keyEnv": "OPENAI_API_KEY" },
+    "gemini": { "kind": "chat", "url": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", "keyEnv": "GEMINI_API_KEY" },
+    "google": { "kind": "gemini", "url": "https://generativelanguage.googleapis.com/v1beta/models", "keyEnv": "GEMINI_API_KEY" },
+    "anthropic": { "kind": "anthropic", "keyEnv": "ANTHROPIC_API_KEY" },
+    "meta": { "kind": "chat", "url": "https://api.meta.ai/v1/chat/completions", "keyEnv": "META_API_KEY" }
+  },
+  "_lanes_note": "Any lane can point at any provider. Example: \"files\": { \"provider\": \"meta\", \"model\": \"muse-spark-1.3\", \"params\": { \"reasoning_effort\": \"minimal\" } }. hear transcribes each Pause recording and needs a gemini provider; voice answers the transcript on any provider. delegate does the work GPT-Live hands over, on any provider; Opus at low effort is { \"provider\": \"anthropic\", \"model\": \"claude-opus-5-5\", \"effort\": \"low\" } with ANTHROPIC_API_KEY. search needs a responses or gemini provider, computer a responses one. gemini lanes take thinking, the model's thinkingLevel (low is the lowest gemini-3.8-flash accepts). Compare candidates with: node scripts/bench-lanes.js",
+  "lanes": {
+    "voice": { "provider": "google", "model": "gemini-3.8-flash", "thinking": "low" },
+    "delegate": { "provider": "google", "model": "gemini-3.8-flash", "thinking": "low" },
+    "hear": { "provider": "google", "model": "gemini-3.8-flash", "thinking": "low" },
+    "fast": { "provider": "google", "model": "gemini-3.8-flash", "thinking": "low" },
+    "files": { "provider": "google", "model": "gemini-3.8-flash", "thinking": "low" },
+    "search": { "provider": "google", "model": "gemini-3.8-flash", "thinking": "low" },
+    "computer": { "provider": "openai", "model": "gpt-6-astra" },
+    "remote": { "provider": "google", "model": "gemini-3.8-flash", "thinking": "low" },
+    "vision": { "provider": "google", "model": "gemini-3.8-flash", "thinking": "low" }
+  },
+  "vision": {
+    "maxEdge": 1280,
+    "monitor": -1,
+    "_note": "The voice session looks at screenshots itself. The vision lane answers for the phone and text paths; Claude works too: { \"provider\": \"anthropic\", \"model\": \"claude-opus-5\" } with ANTHROPIC_API_KEY."
+  },
+  "relay": {
+    "url": "",
+    "pollMs": 1000,
+    "screenEdge": 1280,
+    "_note": "Your deployed remote/ app, e.g. https://butler-yourname.vercel.app. The PC token goes in .env as BUTLER_PC_TOKEN."
+  },
+  "computer": {
+    "monitor": -1,
+    "maxEdge": 1600,
+    "maxSteps": 60,
+    "effort": "low",
+    "actionDelayMs": 120,
+    "settleMs": 400
+  },
+  "paths": {
+    "projects": "~/projects",
+    "defaultCwd": "{projects}",
+    "mole": "{projects}/MOLE",
+    "renders": "{projects}/butler-out/3d",
+    "blender": "blender"
+  },
+  "search": {
+    "everything": "",
+    "roots": ["~/Desktop", "~/Documents", "~/Downloads", "~/Pictures", "~/Videos"],
+    "budgetMs": 3000
+  },
+  "shell": { "exe": "powershell.exe" },
+  "herdr": {
+    "bin": "herdr",
+    "session": "",
+    "workspaceLabel": "butler",
+    "windowTitle": "herdr",
+    "monitor": "side",
+    "launch": ["wt.exe", "herdr"]
+  },
+  "agents": {
+    "defaultCli": "claude",
+    "visibleByDefault": true,
+    "pollMs": 2000,
+    "headlessTimeoutMinutes": 30,
+    "announce": "chime",
+    "models": {
+      "claude": {
+        "default": "claude-opus-5-5",
+        "fable": "claude-fable-5-1",
+        "opus": "claude-opus-5-5",
+        "sonnet": "claude-sonnet-5",
+        "haiku": "claude-haiku-4-5-20251001"
+      },
+      "codex": {
+        "astra": "gpt-6-astra",
+        "sol": "gpt-6-sol",
+        "luna": "gpt-6-luna"
+      }
+    },
+    "claude": {
+      "bin": "claude",
+      "effort": "high",
+      "interactiveArgs": ["--settings", "{\"fastMode\":false}", "--dangerously-skip-permissions", "--permission-mode", "bypassPermissions"],
+      "headlessArgs": ["--settings", "{\"fastMode\":false}", "--dangerously-skip-permissions"]
+    },
+    "codex": { "bin": "codex", "interactiveArgs": [], "headlessArgs": ["--full-auto"] }
+  },
+  "dock": {
+    "stageWidth": 840,
+    "stageHeight": 700,
+    "liveActivities": true,
+    "hideOnBlur": false,
+    "quickActions": [
+      { "label": "herdr", "tool": "open_herdr", "args": {} },
+      { "label": "New Claude", "tool": "spawn_agent", "args": { "cli": "claude", "task": "", "space": true } },
+      { "label": "New Codex", "tool": "spawn_agent", "args": { "cli": "codex", "task": "", "space": true } }
+    ]
+  },
+  "shortcuts": {},
+  "appAliases": { "herder": "herdr", "chrome": "google chrome", "vs code": "visual studio code", "vscode": "visual studio code" },
+  "persona": "You are Butler, a desktop assistant on this Windows PC: quick, precise, with a dry wit you use sparingly. Talk like a sharp friend, not a servant: natural, relaxed and brisk, never formal, never 'sir'. Keep your pace quick."
+}

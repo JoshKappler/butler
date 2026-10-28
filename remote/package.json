@@ -1,0 +1,6 @@
+{
+  "name": "butler-remote",
+  "private": true,
+  "description": "Private relay between your phone and Butler on your PC. Deploy this folder to Vercel.",
+  "engines": { "node": ">=20" }
+}

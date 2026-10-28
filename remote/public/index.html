@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#000000">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Butler</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/icon.png">
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+  <section id="login" hidden>
+    <div class="login-card">
+      <img src="/icon.png" alt="" width="72" height="72">
+      <h1>Butler</h1>
+      <form id="login-form">
+        <input id="passcode" type="password" autocomplete="current-password" placeholder="Passcode" enterkeyhint="go">
+        <button type="submit">Sign in</button>
+      </form>
+      <p id="login-error" class="error"></p>
+    </div>
+  </section>
+
+  <main id="app" hidden>
+    <header class="top">
+      <h1>Butler</h1>
+      <span class="status" id="status"><i></i><span>Connecting</span></span>
+    </header>
+
+    <div class="tiles" id="tiles"></div>
+
+    <section class="group" id="g-pending" hidden>
+      <h2>Needs you</h2>
+      <div class="rows" id="pending"></div>
+    </section>
+
+    <section class="group">
+      <h2>Screen</h2>
+      <div class="rows screen-box">
+        <img id="screen" alt="" hidden>
+        <div class="screen-bar">
+          <button type="button" id="btn-screen">Look</button>
+          <label class="switch"><input type="checkbox" id="tap-click"><span>Control</span></label>
+        </div>
+        <div class="control" id="control" hidden>
+          <p class="hint">Tap to click, double tap to double click, press and hold to right click.</p>
+          <div class="keys" id="pc-keys"></div>
+          <form id="pc-type"><input id="pc-text" placeholder="Type on the PC" autocomplete="off" autocapitalize="off" enterkeyhint="send"></form>
+        </div>
+      </div>
+    </section>
+
+    <section class="group">
+      <h2>Agents</h2>
+      <div class="rows" id="agents"></div>
+    </section>
+
+    <section class="group" id="g-routines" hidden>
+      <h2>Routines</h2>
+      <div class="rows" id="routines"></div>
+    </section>
+
+    <section class="group">
+      <h2>Conversation</h2>
+      <div class="feed" id="feed"></div>
+    </section>
+
+    <form class="composer" id="composer">
+      <button type="button" id="mic" aria-label="Hold to talk">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg>
+      </button>
+      <div class="recording" id="recording" hidden><canvas id="meter" width="240" height="28"></canvas><span id="rec-time">0:00</span></div>
+      <textarea id="text" rows="1" placeholder="Tell Butler" enterkeyhint="send"></textarea>
+      <button type="submit" id="send" aria-label="Send">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V6M6.5 11.5 12 6l5.5 5.5"/></svg>
+      </button>
+    </form>
+  </main>
+
+  <dialog id="sheet">
+    <header><h3 id="sheet-title"></h3><button type="button" id="sheet-close">Done</button></header>
+    <pre id="sheet-screen">Reading...</pre>
+    <div class="keys" id="sheet-keys"></div>
+    <form id="sheet-form"><input id="sheet-input" placeholder="Message this agent" enterkeyhint="send"></form>
+  </dialog>
+
+  <script src="/md.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>

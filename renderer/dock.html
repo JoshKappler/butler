@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Butler</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' butler:; connect-src https://api.openai.com; img-src 'self' butler: data: blob:; font-src 'self' butler:; media-src blob: mediastream: *; style-src 'self' butler: 'unsafe-inline'; script-src 'self' butler:">
+  <link rel="stylesheet" href="butler://app/node_modules/@fontsource-variable/inter/index.css">
+  <link rel="stylesheet" href="dock.css">
+</head>
+<body>
+  <div id="stage">
+    <div id="island" data-view="off">
+      <!-- compact: live activities (agents working, routines, tasks) -->
+      <button class="layer view-live" id="live" type="button">
+        <span class="live-lead" id="live-lead"></span>
+        <span class="live-text" id="live-text"></span>
+        <span class="live-trail" id="live-trail"></span>
+      </button>
+
+      <!-- alert: an agent or task needs Josh -->
+      <div class="layer view-alert" id="alert">
+        <span class="alert-icon" id="alert-icon"></span>
+        <span class="alert-copy">
+          <span class="alert-title" id="alert-title"></span>
+          <span class="alert-body" id="alert-body"></span>
+        </span>
+        <button class="pill-button" id="alert-open" type="button">View</button>
+      </div>
+
+      <!-- wave: a Pause hold, just the wave while Butler listens and answers -->
+      <div class="layer view-wave">
+        <div class="wave pill-wave" id="pill-wave"></div>
+      </div>
+
+      <!-- voice: the wave, what Butler hears, what it says -->
+      <div class="layer view-voice" id="voice">
+        <div class="wave" id="wave"></div>
+        <div class="heard" id="heard"></div>
+        <div class="reply" id="reply"></div>
+      </div>
+
+      <!-- panel: the full dock -->
+      <div class="layer view-panel" id="panel">
+        <header class="p-head">
+          <div class="wave p-wave" id="p-wave"></div>
+        </header>
+        <div class="p-body">
+          <aside class="p-history pane">
+            <div class="p-history-head"><h3>Chats</h3><button class="new-chat" id="open-settings" type="button" title="Settings"></button><button class="new-chat" id="new-chat" type="button" title="New chat"></button></div>
+            <div class="chats" id="chats"></div>
+          </aside>
+          <section class="p-feed pane">
+            <div class="feed" id="feed" data-hint="Hold Pause to talk, or type below."></div>
+            <div class="feed" id="past" hidden></div>
+            <div class="group" id="g-pending" hidden><h3>Needs you</h3><div class="rows pane" id="pending"></div></div>
+            <form class="composer pane" id="composer">
+              <input id="composer-input" autocomplete="off" spellcheck="false" placeholder="Message Butler">
+              <button class="send" id="composer-send" type="submit" title="Send"></button>
+            </form>
+          </section>
+        </div>
+        <form class="p-settings pane" id="settings" hidden>
+          <div class="s-head">
+            <button class="new-chat" id="close-settings" type="button" title="Back to chats"></button>
+            <h2>Settings</h2>
+          </div>
+          <div class="s-scroll">
+            <section class="s-group">
+              <h3>Audio</h3>
+              <label class="s-row"><span>Microphone</span><select id="s-input"></select></label>
+              <label class="s-row"><span>Speakers</span><select id="s-output"></select></label>
+            </section>
+            <section class="s-group">
+              <h3>Voice provider</h3>
+              <label class="s-row"><span>Provider</span><select id="s-engine"></select></label>
+              <p class="s-note" id="s-engine-note"></p>
+            </section>
+            <section class="s-group">
+              <h3>OpenAI GPT-Live voice</h3>
+              <label class="s-row"><span>Voice</span><select id="s-live-voice"></select></label>
+            </section>
+            <section class="s-group">
+              <h3>Gemini voice</h3>
+              <label class="s-row"><span>Speech</span><select id="s-tts-engine"><option value="edge">Edge neural voice</option><option value="sapi">Windows voice (offline)</option></select></label>
+              <label class="s-row"><span>Edge voice</span><input id="s-tts-voice" list="s-edge-voices" autocomplete="off" spellcheck="false"><datalist id="s-edge-voices"></datalist></label>
+              <label class="s-row"><span>Speed</span><input id="s-tts-rate" type="range" min="-50" max="100" step="5"><output id="s-tts-rate-out"></output></label>
+            </section>
+            <section class="s-group">
+              <h3>API keys</h3>
+              <div id="s-keys"></div>
+              <p class="s-note">Saved to %APPDATA%\Butler\.env. Leave a field empty to keep the current key.</p>
+            </section>
+            <section class="s-group">
+              <h3>Talk key</h3>
+              <div class="s-row"><span>Hold to talk, tap for the dock</span><button class="pill-button" id="s-key" type="button"></button></div>
+              <p class="s-note" id="s-key-note"></p>
+            </section>
+          </div>
+          <div class="s-foot">
+            <span class="s-error" id="s-error"></span>
+            <button class="pill-button" id="s-cancel" type="button">Cancel</button>
+            <button class="pill-button primary" id="s-save" type="submit">Save and restart</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="butler://app/node_modules/siriwave/dist/siriwave.umd.min.js"></script>
+  <script src="icons.js"></script>
+  <script src="md.js"></script>
+  <script src="devices.js"></script>
+  <script src="keynames.js"></script>
+  <script src="sounds.js"></script>
+  <script src="mic.js"></script>
+  <script src="voice.js"></script>
+  <script src="voice-turns.js"></script>
+  <script src="voice-live.js"></script>
+  <script src="glass.js"></script>
+  <script src="settings.js"></script>
+  <script src="island.js"></script>
+  <script src="dock.js"></script>
+</body>
+</html>

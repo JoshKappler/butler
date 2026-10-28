@@ -1,0 +1,21 @@
+{
+  "agents": [
+    { "name": "lead-parser-k2", "cli": "claude", "status": "blocked", "title": "Approve migration?", "visible": true, "pane": "w2:p1" },
+    { "name": "opus-worker-a", "cli": "claude", "status": "working", "title": "Refactoring lexer", "visible": true, "pane": "w2:p2" },
+    { "name": "model-3d-watch", "cli": "claude", "status": "done", "visible": false }
+  ],
+  "routines": [
+    { "id": "1", "kind": "mouse_jiggle", "label": "mouse gesture every 30s +/- 10s", "runs": 14, "last": "loop" }
+  ],
+  "tasks": [
+    { "id": "2", "goal": "Order a Logitech G502 X from Amazon", "status": "asking", "last": "click at 812,410" }
+  ],
+  "pending": [
+    { "id": "q3", "kind": "computer", "question": "Place the order for $79.99, arriving Monday?" }
+  ],
+  "recent": [
+    { "tool": "open", "args": { "target": "steam" }, "label": "Open steam", "at": 1790000000000 },
+    { "tool": "spawn_agent", "args": {}, "label": "orchestrate (fable): refactor the parser", "at": 1790000000000 },
+    { "tool": "web_search", "args": {}, "label": "Search: RTX 5080 driver 581", "at": 1790000000000 }
+  ]
+}

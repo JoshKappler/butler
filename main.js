@@ -222,7 +222,8 @@ function startWake() {
 
 // ── control server: Pause and hooks ──────────────────────────────────────────
 // Pause: hold to talk with no window, tap to open or close the dock.
-// A press while Butler speaks stops the speech, and a tap does nothing more.
+// A press while Butler speaks stops the speech; a tap does nothing more, and a
+// hold puts the dock away when it is released.
 // AutoHotkey reports raw down/up; the gesture is read here.
 let speaking = false;
 let pressStopped = false;
@@ -230,7 +231,7 @@ const gesture = createGesture({
   tapMs: config.hotkeys.tapMs,
   onHoldStart: () => { pressStopped = speaking; send('ptt', { phase: 'down', stop: pressStopped }); },
   onHoldConfirmed: () => send('ptt', { phase: 'hold' }),
-  onHoldEnd: ({ held }) => { log(`pause: hold ${held}ms`); send('ptt', { phase: 'up', kind: 'hold' }); },
+  onHoldEnd: ({ held }) => { log(`pause: hold ${held}ms${pressStopped ? ', stopped speech' : ''}`); send('ptt', { phase: 'up', kind: 'hold' }); },
   onTap: ({ held }) => {
     log(`pause: tap ${held}ms${pressStopped ? ', stopped speech' : ''}`);
     send('ptt', { phase: 'up', kind: 'tap' });

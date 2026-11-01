@@ -2,8 +2,10 @@
 // speaks, and hands anything that needs Butler's tools to the delegate lane
 // in main. Same surface as TurnVoice, so dock.js drives either one:
 //   Pause held:   the mic opens into the session (opened on demand); let go
-//                 and the model hears silence and answers
+//                 and the model hears silence and answers. Anything it says
+//                 while the key is still down is muted and it is told to wait.
 //   Pause tapped: the press's audio is dropped
+//   stop:         a press while Butler speaks ends the session outright
 //   Wake word:    the mic stays open until the conversation goes quiet
 // A session bills every second it is open, so it closes after
 // voice.live.idleSeconds of quiet; the next press opens a fresh one seeded
@@ -15,6 +17,7 @@ const LiveVoice = (() => {
   const SPEECH_RMS = 0.004;
   const SPEECH_END_MS = 700;
   const REPLY_WAIT_MS = 8000;
+  const SETTLE_MS = 1200; // a delegated answer often follows "On it." after a gap
 
   let cfg = null;
   let hooks = {};
@@ -29,7 +32,9 @@ const LiveVoice = (() => {
   let turn = null;   // { id, heard, said, shown }
   let lastHeard = '';
   let seq = 0, events = 0;
-  let replyTimer = null;
+  let replyTimer = null, settleTimer = null;
+  let early = false;    // the model started talking while the key was down
+  let draining = false; // that early speech is still coming out, muted
   let analyser = null;
   const says = [];
 
@@ -99,6 +104,7 @@ const LiveVoice = (() => {
     clearTimeout(closeTimer);
     live = false;
     speaking = false;
+    early = draining = false;
     Mic.sendFlow(false);
     try { dc.close(); } catch { /* closed */ }
     try { pc.close(); } catch { /* closed */ }
@@ -107,12 +113,27 @@ const LiveVoice = (() => {
     if (reason !== 'closed') log(`dropped: ${reason}`);
     if (turn) finishTurn();
     if (mode !== 'idle') { mode = 'idle'; Mic.sendOpen(false); emit('onIdle'); }
+    held = false;
+    mute();
+  }
+
+  // A press while Butler speaks: cut the answer off and end the session, so
+  // nothing queued on the server comes back. The next press opens a new one.
+  function stop() {
+    says.length = 0;
+    send({ type: 'session.close' });
+    drop('stopped');
   }
 
   // Audio flows only once the session listens and the press is a real hold.
   function flow() {
     Mic.sendFlow(live && (mode === 'convo' || held));
   }
+
+  // Josh hears nothing while he holds the key, nor the rest of an answer the
+  // model started before he let go.
+  const silenced = () => (mode === 'ptt' && held) || draining;
+  function mute() { audioEl.muted = silenced(); }
 
   // ── speech out ──────────────────────────────────────────────────────────
   // GPT-Live marks no end of a spoken answer, so the output level decides.
@@ -143,6 +164,14 @@ const LiveVoice = (() => {
       speaking = true;
       touch();
       clearTimeout(replyTimer);
+      clearTimeout(settleTimer);
+      if (silenced()) {
+        if (mode === 'ptt' && held && !early) {
+          early = true;
+          append('session.instructions.append', 'Josh is still holding the talk key, so he has not finished. Stop talking and keep listening.');
+        }
+        return;
+      }
       if (!turn) beginTurn();
       if (turn.heard.trim()) emit('onUserText', turn.heard.trim());
       emit('onSpeaking');
@@ -151,9 +180,13 @@ const LiveVoice = (() => {
       if (now - quietSince < SPEECH_END_MS) return;
       speaking = false;
       touch();
+      if (draining) { draining = false; mute(); return; }
+      if (silenced()) return;
       // Still working on a delegated request: back to thinking until its result is spoken.
-      if (delegations) emit('onThinking');
-      else finishTurn();
+      if (delegations) { emit('onThinking'); return; }
+      // Everything said between one release and the next press is one answer.
+      emit('onSpeakingDone');
+      settleTimer = setTimeout(finishTurn, SETTLE_MS);
     }
   }
 
@@ -166,6 +199,7 @@ const LiveVoice = (() => {
     const t = turn;
     turn = null;
     clearTimeout(replyTimer);
+    clearTimeout(settleTimer);
     if (!t) return;
     const heard = t.heard.trim(), said = t.said.trim();
     if (heard) lastHeard = heard;
@@ -189,8 +223,10 @@ const LiveVoice = (() => {
     delegations++;
     touch();
     clearTimeout(replyTimer);
+    clearTimeout(settleTimer);
     if (!turn) beginTurn();
     const t = turn;
+    if (!speaking) emit('onThinking');
     emit('onTool', 'delegate');
     let result;
     try {
@@ -223,6 +259,8 @@ const LiveVoice = (() => {
         break;
       case 'session.output_transcript.delta':
         touch();
+        if (silenced()) break;
+        clearTimeout(settleTimer);
         if (!turn) beginTurn();
         turn.said += ev.delta || '';
         emit('onButlerDelta', ev.delta || '', turn.id);
@@ -251,6 +289,7 @@ const LiveVoice = (() => {
     if (turn && !speaking && !delegations) finishTurn();
     mode = 'ptt';
     held = false;
+    mute();
     flow();
     Mic.sendDrop();
     Mic.sendOpen(true);
@@ -260,15 +299,15 @@ const LiveVoice = (() => {
     connect().catch((err) => emit('onError', err.message));
   }
 
-  // The dock calls this once the press is a confirmed hold. The old answer is
-  // silenced here; the model hears Josh over it and stops on its own.
+  // The dock calls this once the press is a confirmed hold.
   function interrupt() {
     if (mode !== 'ptt') return;
-    audioEl.muted = true;
     held = true;
+    early = false;
     openedFor = 0;
     if (turn) finishTurn();
     beginTurn();
+    mute();
     flow();
   }
 
@@ -276,8 +315,10 @@ const LiveVoice = (() => {
     if (mode !== 'ptt') return;
     mode = 'idle';
     Mic.sendOpen(false);
-    audioEl.muted = false;
-    if (kind === 'tap' || !held) {
+    const wasHeld = held;
+    held = false;
+    if (kind === 'tap' || !wasHeld) {
+      mute();
       Mic.sendDrop();
       flow();
       // A tap that opened a session has nothing to say in it.
@@ -289,7 +330,15 @@ const LiveVoice = (() => {
       emit('onIdle');
       return;
     }
-    held = false;
+    // The model jumped in while the key was down: what it said was muted, so
+    // it answers again now.
+    if (early) {
+      if (turn) turn.said = '';
+      draining = speaking;
+      append('session.instructions.append', 'Josh let go of the talk key and has finished. Answer him now.');
+    }
+    early = false;
+    mute();
     emit('onThinking');
     waitForReply();
   }
@@ -362,7 +411,7 @@ const LiveVoice = (() => {
   }
 
   return {
-    init, pttDown, pttUp, startConversation, endConversation, sendText, say, interrupt,
+    init, pttDown, pttUp, startConversation, endConversation, sendText, say, interrupt, stop,
     mode: () => mode, isConnected: () => live,
   };
 })();

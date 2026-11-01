@@ -365,10 +365,32 @@
   }
   window.butler.onWake(({ command }) => wake(command || ''));
 
+  // Pause is an intercom. A press while Butler speaks only stops it: a tap
+  // leaves it there, a hold puts everything away when released.
+  let stopping = false;
+  function quietDown() {
+    clearTimeout(lingerTimer);
+    S.linger = false;
+    S.reply = '';
+    Island.setReply('');
+    setVoice('idle');
+  }
+
   window.butler.onPtt(({ phase, kind, stop }) => {
+    if (phase === 'down' && stop) {
+      stopping = true;
+      if (Voice.stop) Voice.stop();
+      quietDown();
+      return;
+    }
+    if (stopping) {
+      if (phase !== 'up') return;
+      stopping = false;
+      if (kind === 'hold') { if (S.panel) openPanel(false); S.alert = null; quietDown(); }
+      return;
+    }
     if (phase === 'hold') { S.armed = false; Sounds.play('ptt'); render(); Voice.interrupt(); return; }
     if (phase === 'down') {
-      if (stop && Voice.stop) Voice.stop();
       S.quiet = true;
       S.armed = Island.view() !== 'wave';
       setVoice('listening');

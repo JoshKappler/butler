@@ -20,7 +20,7 @@ The screenshots are rendered from Butler's dev mode with sample data, not real c
 | Hold **Pause**, ask anything | Butler answers out loud in a British voice. With the panel closed, only a small pill with the Siri wave comes up at the top while it listens and answers. |
 | Tap **Pause** | The island grows into the panel: past chats on the left (+ starts a new one, and so do three quiet hours; Butler remembers the whole current chat), the conversation and a text box on the right. Hold Pause to talk to it, like an intercom. Tap again or Esc to close. |
 | Click the gear by **Chats** | Settings: microphone and speakers, the voice provider (OpenAI GPT-Live or Gemini) and each one's voice, API keys, and the talk key, which you record by pressing it. Saving restarts Butler. |
-| Press **Pause** while Butler speaks | The speech stops. A tap does nothing more; tap again for the panel. |
+| Press **Pause** while Butler speaks | The speech stops. A tap does nothing more; tap again for the panel. Hold, then let go, and the panel and island go away too. |
 | Nothing | While agents, tasks or routines are running, a small live-activity pill stays at the top. An agent that needs you turns it into an alert with a chime. |
 | "Butler, open Steam" | Wake word with the command in the same breath. Follow-ups work without Pause until you go quiet. |
 | "What's the weather in SF tomorrow" | Web search, spoken answer, sources in the dock. |

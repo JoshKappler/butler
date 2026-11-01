@@ -12,6 +12,8 @@ void main() { gl_Position = vec4(p, 0.0, 1.0); }`;
   // from the top left. The original sizes its refraction and rim bands by the
   // box height, which suits a button; on a tall panel that band reaches the
   // diagonal seam of the box SDF, so here both bands are fixed widths.
+  // Corners follow CSS corner-shape: superellipse(K) is |x|^n + |y|^n = 1 with
+  // n = 2^K, so squircle corners meet the straight edges with no curvature jump.
   // The original's per-frame grain is left out: on a large dark panel it reads
   // as TV static.
   const FS = `#version 300 es
@@ -21,6 +23,7 @@ uniform sampler2D blurTex;
 uniform vec2 resolution;
 uniform vec4 box;
 uniform float cornerRadius;
+uniform float cornerExp;
 uniform float blurScale;
 uniform vec3 tintColor;
 uniform float tintAlpha;
@@ -30,9 +33,10 @@ uniform float fromFrame;
 uniform float px;
 out vec4 outColor;
 
-float boxSDF(vec2 p, vec2 size, float r) {
+float boxSDF(vec2 p, vec2 size, float r, float n) {
   vec2 q = abs(p) - size * 0.5 + r;
-  return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - r;
+  vec2 m = max(q, 0.0) / max(r, 1e-4);
+  return min(max(q.x, q.y), 0.0) + r * pow(pow(m.x, n) + pow(m.y, n), 1.0 / n) - r;
 }
 
 // The original hashes x and y apart, which draws faint columns; this one
@@ -63,9 +67,14 @@ vec3 blurredColor(vec2 uv) {
 void main() {
   vec2 frag = vec2(gl_FragCoord.x, resolution.y - gl_FragCoord.y);
   vec2 uv = frag / resolution;
-  float sdf = boxSDF(frag - box.xy - box.zw * 0.5, box.zw, cornerRadius);
-  vec2 g = vec2(dFdx(sdf), -dFdy(sdf));
-  vec2 grad = g / max(length(g), 1e-4);
+  vec2 p = frag - box.xy - box.zw * 0.5;
+  float raw = boxSDF(p, box.zw, cornerRadius, cornerExp);
+  vec2 g = vec2(dFdx(raw), -dFdy(raw));
+  float slope = max(length(g), 1e-4);
+  vec2 grad = g / slope;
+  // A superellipse field is not a true distance; dividing by its slope keeps
+  // the edge and the rim the same width all the way round.
+  float sdf = raw / slope;
 
   vec3 base = texture(sharpTex, tc(uv)).rgb;
   float weight = pow(blurScale, 1.5);
@@ -77,9 +86,14 @@ void main() {
   vec3 blurred = vec3(blurredColor(at + split).r, blurredColor(at).g, blurredColor(at - split).b);
   vec3 mixed = mix(base, blurred, weight);
 
-  // Rim light on the edges that face the light.
-  float facing = clamp(1.0 - abs(dot(grad, light)), 0.0, 1.0);
-  mixed += clamp((1.0 - sqrt(facing)) * exp(sdf / (2.0 * px)), 0.0, 1.0) * 0.5;
+  // Rim light: brightest where the outline faces the light, a softer echo on
+  // the far side. The normal leans on the direction from the centre, so the
+  // light drifts along the straight edges too instead of changing only in
+  // the corners.
+  vec2 around = normalize(p / max(box.zw * 0.5, vec2(1.0)) + vec2(0.0, 1e-5));
+  float d = dot(normalize(around + grad), light);
+  float rim = 0.08 + 0.5 * pow(max(d, 0.0), 2.0) + 0.2 * pow(max(-d, 0.0), 2.0);
+  mixed += rim * exp(sdf / (2.0 * px));
 
   mixed = mix(mixed, tintColor, tintAlpha * weight);
   mixed = mix(mixed, vec3(0.96, 0.98, 1.0), 0.06 * weight);
@@ -149,7 +163,7 @@ void main() { outColor = texture(src, gl_FragCoord.xy / resolution); }`;
     if (!gl) throw new Error('no WebGL2');
     glassProg = compile(FS);
     copyProg = compile(COPY);
-    U = uniforms(glassProg, ['sharpTex', 'blurTex', 'resolution', 'box', 'cornerRadius', 'blurScale', 'tintColor', 'tintAlpha', 'light', 'opacity', 'fromFrame', 'px']);
+    U = uniforms(glassProg, ['sharpTex', 'blurTex', 'resolution', 'box', 'cornerRadius', 'cornerExp', 'blurScale', 'tintColor', 'tintAlpha', 'light', 'opacity', 'fromFrame', 'px']);
     CU = uniforms(copyProg, ['src', 'resolution']);
     gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]), gl.STATIC_DRAW);
@@ -192,7 +206,7 @@ void main() { outColor = texture(src, gl_FragCoord.xy / resolution); }`;
     const diff = ((lightTo - lightNow) % 360 + 540) % 360 - 180;
     lightNow += diff * (1 - Math.exp(-dt / 0.18));
     const r = lightNow * Math.PI / 180;
-    return [Math.cos(r) * Math.SQRT2, -Math.sin(r) * Math.SQRT2];
+    return [Math.cos(r), -Math.sin(r)];
   }
 
   function resize() {
@@ -209,7 +223,13 @@ void main() { outColor = texture(src, gl_FragCoord.xy / resolution); }`;
     return dpr;
   }
 
-  function drawBox(rect, radius, look, opacity, sharp, blur, clip, dpr) {
+  // The shader's n from an element's computed corner-shape.
+  function cornerExp(style) {
+    const m = /superellipse\(([-\d.e]+)\)/.exec(style.cornerTopLeftShape || '');
+    return m ? Math.min(16, Math.max(1, 2 ** parseFloat(m[1]))) : 2;
+  }
+
+  function drawBox(rect, radius, exp, look, opacity, sharp, blur, clip, dpr) {
     const H = canvas.height;
     const x0 = Math.max(0, Math.floor(clip.left * dpr)), y0 = Math.max(0, Math.floor(clip.top * dpr));
     const x1 = Math.min(canvas.width, Math.ceil(clip.right * dpr)), y1 = Math.min(H, Math.ceil(clip.bottom * dpr));
@@ -219,6 +239,7 @@ void main() { outColor = texture(src, gl_FragCoord.xy / resolution); }`;
     gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, blur);
     gl.uniform4f(U.box, rect.left * dpr, rect.top * dpr, rect.width * dpr, rect.height * dpr);
     gl.uniform1f(U.cornerRadius, Math.min(radius, rect.width / 2, rect.height / 2) * dpr);
+    gl.uniform1f(U.cornerExp, exp);
     gl.uniform1f(U.blurScale, look.blurScale);
     gl.uniform3fv(U.tintColor, look.tintColor);
     gl.uniform1f(U.tintAlpha, look.tintAlpha);
@@ -255,7 +276,7 @@ void main() { outColor = texture(src, gl_FragCoord.xy / resolution); }`;
     gl.clear(gl.COLOR_BUFFER_BIT);
     gl.enable(gl.SCISSOR_TEST);
     gl.disable(gl.BLEND);
-    drawBox(rect, radius, ISLAND, 1, sharpTex, blurTex, rect, dpr);
+    drawBox(rect, radius, cornerExp(style), ISLAND, 1, sharpTex, blurTex, rect, dpr);
 
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     gl.disable(gl.SCISSOR_TEST);
@@ -279,7 +300,8 @@ void main() { outColor = texture(src, gl_FragCoord.xy / resolution); }`;
       if (!r.width || !r.height) continue;
       const scroller = el.parentElement.closest('.feed, .chats');
       const clip = scroller ? inter(inter(r, scroller.getBoundingClientRect()), rect) : inter(r, rect);
-      drawBox(r, parseFloat(getComputedStyle(el).borderTopLeftRadius) || 0, PANE, paneOpacity, fboTex, fboTex, clip, dpr);
+      const ps = getComputedStyle(el);
+      drawBox(r, parseFloat(ps.borderTopLeftRadius) || 0, cornerExp(ps), PANE, paneOpacity, fboTex, fboTex, clip, dpr);
     }
   }
 

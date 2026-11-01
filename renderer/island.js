@@ -9,13 +9,15 @@ const Island = (() => {
 
   // Width, height, corner radius. Apple's island uses height/2 when compact
   // and 44pt when expanded; desktop sizes are a touch larger than a phone's.
+  // Voice and panel corners are squircles (dock.css), which need about 1.7x
+  // the radius to look as soft as a circle.
   const SHAPE = {
     off: [150, 36, 18],
     live: [260, 38, 19],
     alert: [460, 72, 36],
     wave: [240, 46, 23],
-    voice: [520, 128, 40],
-    panel: [800, 660, 44],
+    voice: [520, 128, 68],
+    panel: [800, 660, 75],
   };
   // Light angles: degrees, 0 = from the right, 90 = above.
   let lightDeg = 136;
@@ -226,7 +228,7 @@ const Island = (() => {
     if (fake !== null) { amp = fake; speed = 0.14; }
     else if (waveMode === 'listening') { amp = micAmp(); speed = 0.13; }
     else if (waveMode === 'speaking') { amp = Math.min(3, 0.3 + outputLevel() * 18); speed = 0.16; }
-    else if (waveMode === 'thinking') { amp = 0.6; speed = 0.05; }
+    else if (waveMode === 'thinking') { amp = 0; speed = 0.05; }
     if (wave) { wave.setAmplitude(amp); wave.setSpeed(speed); }
     if (headWave) { headWave.setAmplitude(Math.min(4, amp * 2)); headWave.setSpeed(speed); }
     if (pillWave) { pillWave.setAmplitude(Math.min(3, amp * 1.5)); pillWave.setSpeed(speed); }
@@ -271,6 +273,7 @@ const Island = (() => {
 
   function setWaveMode(m) {
     waveMode = m;
+    island.dataset.wave = m;
     voiceLayer.classList.toggle('thinking', m === 'thinking');
   }
 

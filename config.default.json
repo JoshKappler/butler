@@ -136,8 +136,9 @@
     "codex": { "bin": "codex", "interactiveArgs": [], "headlessArgs": ["--full-auto"] }
   },
   "dock": {
-    "stageWidth": 840,
-    "stageHeight": 700,
+    "stageWidth": 960,
+    "stageHeight": 800,
+    "_stage_note": "The transparent window. It must clear the panel (800 x 660) plus its drop shadow, or the window edge cuts the shadow off in a straight-edged box.",
     "liveActivities": true,
     "hideOnBlur": false,
     "quickActions": [

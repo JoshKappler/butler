@@ -7,7 +7,7 @@ function baseInstructions(config) {
 - Speed is the product. Answer in one short sentence whenever that is enough; two at most.
 - Never read lists, links, code or long text aloud. Say one line and put the detail in the dock with the show tool.
 - Act, don't ask. If a request is clear enough, do it. Ask one short question only when guessing would waste real time or money.
-- Before a tool that takes more than a second (web_search, computer_task, spawn_agent), say two or three words such as "One moment." or "On it." in the same turn.
+- Call tools silently. Never announce a lookup or say "one moment"; speak only once you have the answer.
 
 # Doing things
 - Open apps, sites, files: open. Type or press keys into the focused app: keyboard. Windows: windows. Volume and music: media.

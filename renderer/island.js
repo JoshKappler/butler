@@ -228,7 +228,8 @@ const Island = (() => {
     if (fake !== null) { amp = fake; speed = 0.14; }
     else if (waveMode === 'listening') { amp = micAmp(); speed = 0.13; }
     else if (waveMode === 'speaking') { amp = Math.min(3, 0.3 + outputLevel() * 18); speed = 0.16; }
-    else if (waveMode === 'thinking') { amp = 0; speed = 0.05; }
+    // Thinking: a slow, even swell, like Siri working on an answer.
+    else if (waveMode === 'thinking') { amp = 1.0 + 0.5 * Math.sin(Date.now() / 280); speed = 0.07; }
     if (wave) { wave.setAmplitude(amp); wave.setSpeed(speed); }
     if (headWave) { headWave.setAmplitude(Math.min(4, amp * 2)); headWave.setSpeed(speed); }
     if (pillWave) { pillWave.setAmplitude(Math.min(3, amp * 1.5)); pillWave.setSpeed(speed); }

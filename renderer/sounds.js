@@ -1,5 +1,5 @@
-// Butler's chimes, synthesized so there are no audio files to ship. All quiet:
-// the "needs you" bell should be noticed, never startling.
+// Butler's chimes, synthesized so there are no audio files to ship. Quiet
+// except the talk-key ping, which has to be heard over a game or music.
 const Sounds = (() => {
   const ctx = new AudioContext();
   Devices.route(ctx);
@@ -26,7 +26,7 @@ const Sounds = (() => {
 
   const kinds = {
     wake: () => { tone(740, 0, 0.09, 0.05); tone(988, 0.07, 0.14, 0.05); },
-    ptt: () => tone(1320, 0, 0.04, 0.03, 'triangle'),
+    ptt: () => tone(1320, 0, 0.06, 0.14, 'triangle'),
     release: () => tone(990, 0, 0.04, 0.025, 'triangle'),
     needs: () => { bell(659, 0, 0.09); bell(988, 0.16, 0.08); },
     attention: () => { bell(784, 0, 0.07); bell(784, 0.14, 0.06); bell(1047, 0.28, 0.07); },

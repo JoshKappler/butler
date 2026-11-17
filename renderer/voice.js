@@ -6,6 +6,8 @@
 //   Wake word:    conversation mode with server VAD until Josh goes quiet
 // Only the newest press may make Butler speak: a press or stop bumps epoch,
 // and tool results from an older one are filed without a spoken follow-up.
+// Each answer is worked out in text first, tools and all, then spoken once,
+// so Josh hears one reply per press and never a "let me check".
 const RealtimeVoice = (() => {
   const audioEl = new Audio();
   audioEl.autoplay = true;
@@ -24,7 +26,7 @@ const RealtimeVoice = (() => {
   let pendingKind = 'hold';
   let convoTimer = null;
   let connectedAt = 0, lastActivity = 0, usedSinceConnect = false;
-  let epoch = 0;
+  let epoch = 0, asked = 0;
   let turn = null; // { heard, said, done } for the chat list
 
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -99,6 +101,19 @@ const RealtimeVoice = (() => {
     interrupt();
   }
 
+  // think: a text pass that may call tools. speak: the one spoken answer.
+  function think() {
+    asked = epoch;
+    responseActive = true;
+    send({ type: 'response.create', response: { output_modalities: ['text'] } });
+  }
+
+  function speak() {
+    asked = epoch;
+    responseActive = true;
+    send({ type: 'response.create', response: { output_modalities: ['audio'], tool_choice: 'none' } });
+  }
+
   function setTurnDetection(on) {
     const td = on ? {
       type: 'server_vad',
@@ -153,7 +168,7 @@ const RealtimeVoice = (() => {
     await sleep(cfg.voice.pttTailMs || 200);
     if (sender) await sender.replaceTrack(null);
     send({ type: 'input_audio_buffer.commit' });
-    send({ type: 'response.create' });
+    think();
     turn = { heard: '', said: '', done: false };
     mode = 'idle';
     emit('onThinking');
@@ -164,6 +179,7 @@ const RealtimeVoice = (() => {
     try { await connect(); } catch (err) { emit('onError', err.message); return; }
     interrupt();
     mode = 'convo';
+    asked = epoch;
     setTurnDetection(true);
     send({ type: 'input_audio_buffer.clear' });
     await sender.replaceTrack(micTrack);
@@ -197,7 +213,7 @@ const RealtimeVoice = (() => {
     try { await connect(); } catch (err) { emit('onError', err.message); return; }
     interrupt();
     send({ type: 'conversation.item.create', item: { type: 'message', role: 'user', content: [{ type: 'input_text', text }] } });
-    send({ type: 'response.create' });
+    think();
     emit('onUserText', text);
   }
 
@@ -213,7 +229,7 @@ const RealtimeVoice = (() => {
     const text = says.shift();
     touch();
     send({ type: 'conversation.item.create', item: { type: 'message', role: 'system', content: [{ type: 'input_text', text }] } });
-    send({ type: 'response.create' });
+    think();
   }
 
   // ── server events ────────────────────────────────────────────────────────
@@ -243,10 +259,11 @@ const RealtimeVoice = (() => {
     for (const url of images) {
       send({ type: 'conversation.item.create', item: { type: 'message', role: 'user', content: [{ type: 'input_image', image_url: url, detail: 'high' }] } });
     }
-    // end_conversation needs no spoken follow-up beyond what was already said.
+    // end_conversation needs only the goodbye, so it skips the text pass.
     toolsInFlight--;
-    if (mine === epoch && !calls.every((c) => c.name === 'end_conversation')) send({ type: 'response.create' });
-    else flushSays();
+    if (mine !== epoch) flushSays();
+    else if (calls.every((c) => c.name === 'end_conversation')) speak();
+    else think();
   }
 
   function handle(ev) {
@@ -289,12 +306,18 @@ const RealtimeVoice = (() => {
       case 'response.done': {
         responseActive = false;
         touch();
-        const cut = ev.response && ev.response.status === 'cancelled';
-        const calls = cut ? [] : ((ev.response && ev.response.output) || []).filter((o) => o.type === 'function_call');
+        const r = ev.response || {};
+        const out = r.output || [];
+        const spoken = (r.output_modalities || ['audio']).includes('audio');
+        // Text-pass words are dropped, so the conversation keeps only what Josh heard.
+        if (!spoken) for (const o of out) if (o.type === 'message') send({ type: 'conversation.item.delete', item_id: o.id });
+        const live = r.status !== 'cancelled' && asked === epoch;
+        const calls = live ? out.filter((o) => o.type === 'function_call') : [];
         if (calls.length) runTools(calls);
+        else if (live && !spoken) speak();
         else {
           emit('onResponseDone');
-          if (turn && !cut) { turn.done = true; record(); }
+          if (turn && live) { turn.done = true; record(); }
         }
         armConvoIdle();
         flushSays();
@@ -303,6 +326,7 @@ const RealtimeVoice = (() => {
       case 'error': {
         const code = ev.error && ev.error.code;
         if (code === 'response_cancel_not_active' || code === 'input_audio_buffer_commit_empty') break;
+        responseActive = false;
         window.butler.log('realtime error ' + JSON.stringify(ev.error || ev).slice(0, 300));
         emit('onError', (ev.error && ev.error.message) || 'voice error');
         break;

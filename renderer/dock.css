@@ -162,16 +162,6 @@ button { cursor: pointer; }
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5) 12%, rgba(255, 255, 255, 0.5) 88%, transparent);
   opacity: 0.7;
 }
-/* Thinking: the wave lies flat and a light runs along the line, so it never
-   looks like Butler is still listening. */
-#island[data-wave="thinking"] .wave::before {
-  height: 2px; opacity: 1;
-  background:
-    linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.95), transparent) -100% 0 / 40% 100% no-repeat,
-    linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3) 12%, rgba(255, 255, 255, 0.3) 88%, transparent);
-  animation: think-line 1.2s ease-in-out infinite;
-}
-@keyframes think-line { to { background-position: 200% 0, 0 0; } }
 .view-wave { display: grid; place-items: center; }
 .pill-wave { width: 200px; height: 40px; margin: 0; }
 .heard, .reply { text-wrap: pretty; }

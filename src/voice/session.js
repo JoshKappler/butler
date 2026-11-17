@@ -16,7 +16,7 @@ function sessionBody(config, instructions, tools) {
         // Push-to-talk is the resting mode: nothing is a turn until Pause is released.
         turn_detection: null,
       },
-      output: { voice: v.voice },
+      output: { voice: v.voice, speed: v.speed || 1 },
     },
   };
   if (v.reasoningEffort) session.reasoning = { effort: v.reasoningEffort };

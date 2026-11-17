@@ -50,6 +50,8 @@ test('realtime session starts in push-to-talk with tools and transcription', () 
   assert.equal(b.session.audio.input.transcription.model, cfg.voice.transcribeModel);
   assert.equal(b.session.reasoning.effort, 'low');
   assert.equal(b.session.tools.length, 1);
+  assert.equal(b.session.audio.output.speed, 1);
+  assert.equal(sessionBody({ ...cfg, voice: { ...cfg.voice, speed: 1.25 } }, '', []).session.audio.output.speed, 1.25);
 });
 
 test('instructions carry the live desk context', () => {

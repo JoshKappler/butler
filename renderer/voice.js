@@ -2,7 +2,10 @@
 // Resting state: connected, no mic track attached, turn detection off.
 //   Pause held:   mic attached, released -> commit + respond (push-to-talk)
 //   Pause tapped: turn dropped (the tap opens or closes the dock)
+//   stop:         a press while Butler speaks cuts the answer off
 //   Wake word:    conversation mode with server VAD until Josh goes quiet
+// Only the newest press may make Butler speak: a press or stop bumps epoch,
+// and tool results from an older one are filed without a spoken follow-up.
 const RealtimeVoice = (() => {
   const audioEl = new Audio();
   audioEl.autoplay = true;
@@ -21,6 +24,8 @@ const RealtimeVoice = (() => {
   let pendingKind = 'hold';
   let convoTimer = null;
   let connectedAt = 0, lastActivity = 0, usedSinceConnect = false;
+  let epoch = 0;
+  let turn = null; // { heard, said, done } for the chat list
 
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const emit = (name, ...a) => { if (hooks[name]) hooks[name](...a); };
@@ -86,6 +91,13 @@ const RealtimeVoice = (() => {
     if (speaking) send({ type: 'output_audio_buffer.clear' });
   }
 
+  function stop() {
+    epoch++;
+    says.length = 0;
+    turn = null;
+    interrupt();
+  }
+
   function setTurnDetection(on) {
     const td = on ? {
       type: 'server_vad',
@@ -108,6 +120,8 @@ const RealtimeVoice = (() => {
 
   async function pttDown() {
     pttHeld = true;
+    epoch++;
+    turn = null;
     touch();
     clearTimeout(convoTimer);
     try { await connect(); } catch (err) { emit('onError', err.message); return; }
@@ -139,6 +153,7 @@ const RealtimeVoice = (() => {
     if (sender) await sender.replaceTrack(null);
     send({ type: 'input_audio_buffer.commit' });
     send({ type: 'response.create' });
+    turn = { heard: '', said: '', done: false };
     mode = 'idle';
     emit('onThinking');
   }
@@ -193,7 +208,7 @@ const RealtimeVoice = (() => {
   }
 
   function flushSays() {
-    if (!connected || responseActive || toolsInFlight || mode === 'ptt' || !says.length) return;
+    if (!connected || responseActive || speaking || toolsInFlight || mode === 'ptt' || !says.length) return;
     const text = says.shift();
     touch();
     send({ type: 'conversation.item.create', item: { type: 'message', role: 'system', content: [{ type: 'input_text', text }] } });
@@ -201,7 +216,15 @@ const RealtimeVoice = (() => {
   }
 
   // ── server events ────────────────────────────────────────────────────────
+  // One exchange per press goes to the chat list once both sides are known.
+  function record() {
+    if (!turn || !turn.done || !turn.heard || !turn.said.trim()) return;
+    window.butler.liveRecord({ heard: turn.heard, answer: turn.said.trim(), shown: '' });
+    turn = null;
+  }
+
   async function runTools(calls) {
+    const mine = epoch;
     toolsInFlight++;
     const results = await Promise.all(calls.map(async (c) => {
       emit('onTool', c.name, c.arguments);
@@ -221,7 +244,7 @@ const RealtimeVoice = (() => {
     }
     // end_conversation needs no spoken follow-up beyond what was already said.
     toolsInFlight--;
-    if (!calls.every((c) => c.name === 'end_conversation')) send({ type: 'response.create' });
+    if (mine === epoch && !calls.every((c) => c.name === 'end_conversation')) send({ type: 'response.create' });
     else flushSays();
   }
 
@@ -233,7 +256,10 @@ const RealtimeVoice = (() => {
         armConvoIdle();
         break;
       case 'conversation.item.input_audio_transcription.completed':
-        if (ev.transcript && ev.transcript.trim()) emit('onUserText', ev.transcript.trim());
+        if (ev.transcript && ev.transcript.trim()) {
+          emit('onUserText', ev.transcript.trim());
+          if (turn) { turn.heard = ev.transcript.trim(); record(); }
+        }
         break;
       case 'response.created':
         responseActive = true;
@@ -254,14 +280,21 @@ const RealtimeVoice = (() => {
         if (ev.delta) emit('onButlerDelta', ev.delta, ev.response_id);
         break;
       case 'response.output_audio_transcript.done':
-        if (ev.transcript) emit('onButlerText', ev.transcript);
+        if (ev.transcript) {
+          emit('onButlerText', ev.transcript);
+          if (turn) turn.said += ` ${ev.transcript}`;
+        }
         break;
       case 'response.done': {
         responseActive = false;
         touch();
-        const calls = ((ev.response && ev.response.output) || []).filter((o) => o.type === 'function_call');
+        const cut = ev.response && ev.response.status === 'cancelled';
+        const calls = cut ? [] : ((ev.response && ev.response.output) || []).filter((o) => o.type === 'function_call');
         if (calls.length) runTools(calls);
-        else emit('onResponseDone');
+        else {
+          emit('onResponseDone');
+          if (turn && !cut) { turn.done = true; record(); }
+        }
         armConvoIdle();
         flushSays();
         break;
@@ -299,7 +332,7 @@ const RealtimeVoice = (() => {
   }
 
   return {
-    init, pttDown, pttUp, startConversation, endConversation, sendText, say, interrupt,
+    init, pttDown, pttUp, startConversation, endConversation, sendText, say, interrupt, stop,
     mode: () => mode, isConnected: () => connected,
   };
 })();

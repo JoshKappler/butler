@@ -41,7 +41,7 @@ const RealtimeVoice = (() => {
     if (connected) return;
     if (connecting) return connecting;
     connecting = (async () => {
-      const { clientSecret } = await window.butler.mint();
+      const { clientSecret, history } = await window.butler.mint();
       pc = new RTCPeerConnection();
       sender = pc.addTransceiver('audio', { direction: 'sendrecv' }).sender;
       pc.ontrack = (e) => {
@@ -53,6 +53,7 @@ const RealtimeVoice = (() => {
         if (['failed', 'closed', 'disconnected'].includes(pc && pc.connectionState)) drop('connection ' + (pc && pc.connectionState));
       };
       dc = pc.createDataChannel('oai-events');
+      for (const item of history || []) send({ type: 'conversation.item.create', item });
       dc.onopen = () => { for (const m of outbox.splice(0)) dc.send(JSON.stringify(m)); };
       dc.onmessage = (e) => { try { handle(JSON.parse(e.data)); } catch (err) { window.butler.log('voice event: ' + err.message); } };
       const offer = await pc.createOffer();

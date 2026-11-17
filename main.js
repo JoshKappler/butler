@@ -279,7 +279,11 @@ ipcMain.handle('config', () => ({
   dock: config.dock, voice: { ...config.voice, engine: voiceEngine }, captions: captions.engine, audio: config.audio, key: config.hotkeys.key,
   wake: { engine: config.wake.engine, speechGateRms: config.wake.speechGateRms },
 }));
-ipcMain.handle('mint', async () => mint(config, buildInstructions(config, await liveContext()), tools.schemas()));
+// The current chat rides along so a fresh Realtime session remembers it.
+ipcMain.handle('mint', async () => ({
+  ...await mint(config, buildInstructions(config, await liveContext()), tools.schemas()),
+  history: historyInput(chats.current(), { turns: config.voice.historyTurns }),
+}));
 // Turn-based voice (voice.engine "turns"): any model lane, speech made here.
 const chats = createChats({ dir: config.stateDir, ttlMs: (config.voice.chatGapMinutes || 180) * 60000 });
 const turns = createTurns({ config, lanes, tools, chats, context: liveContext, emit: (e) => { if (e.type === 'tool') log(`voice tool: ${e.name}`); send('voice-event', e); } });
